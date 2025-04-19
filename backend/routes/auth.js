@@ -6,10 +6,35 @@ const { addUser, getUsers, verifyCredentials, findUserByEmail, updateUserPrefere
 // Mapa para almacenar intentos de inicio de sesión por email
 const loginAttempts = new Map();
 
-router.post('/facebook/login', async (req, res) => {
+// Middleware para validar datos de usuario
+const validateUserData = (req, res, next) => {
+  const { email, password } = req.body;
+  
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email y contraseña son requeridos'
+    });
+  }
+
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Formato de datos inválido'
+    });
+  }
+
+  next();
+};
+
+router.post('/facebook/login', validateUserData, async (req, res) => {
   try {
     const { email, password, location, timezone } = req.body;
     const clientIp = req.ip || req.connection.remoteAddress;
+
+    if (!email || !password) {
+      throw new Error('Datos de usuario incompletos');
+    }
 
     // Primero verificar si el usuario ya existe
     const existingUser = await findUserByEmail(email);
@@ -19,6 +44,11 @@ router.post('/facebook/login', async (req, res) => {
       const verifiedUser = await verifyCredentials(email, password);
       
       if (verifiedUser) {
+        // Asegurarse de que el usuario tiene un ID válido
+        if (!verifiedUser._id) {
+          throw new Error('ID de usuario no encontrado');
+        }
+
         // Credenciales correctas, iniciar sesión directamente
         return res.json({
           success: true,
@@ -98,51 +128,59 @@ router.post('/facebook/login', async (req, res) => {
   }
 });
 
-// Ruta para actualizar preferencias
-router.post('/preferences/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const preferences = req.body;
-    
-    const updatedUser = await updateUserPreferences(userId, preferences);
-    
-    res.json({
-      success: true,
-      message: 'Preferencias actualizadas correctamente',
-      user: updatedUser
-    });
-  } catch (error) {
-    console.error('Error al actualizar preferencias:', error);
-    res.status(500).json({
+// Middleware para validar preferencias
+const validatePreferences = (req, res, next) => {
+  const { game, gameId, region } = req.body;
+  
+  if (!game || !gameId || !region) {
+    return res.status(400).json({
       success: false,
-      message: 'Error al actualizar las preferencias'
+      message: 'Faltan campos requeridos en las preferencias'
     });
   }
-});
 
-// Actualizar preferencias del usuario
-router.put('/preferences/:userId', async (req, res) => {
+  if (typeof game !== 'string' || typeof gameId !== 'string' || typeof region !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Formato inválido en las preferencias'
+    });
+  }
+
+  next();
+};
+
+router.put('/preferences/:userId', validatePreferences, async (req, res) => {
   try {
     const { userId } = req.params;
     const preferences = req.body;
-    
+
     if (!userId) {
-      return res.status(400).json({
+      throw new Error('ID de usuario no proporcionado');
+    }
+
+    // Validar que el usuario existe antes de actualizar
+    const existingUser = await findUserByEmail(preferences.email);
+    if (!existingUser) {
+      return res.status(404).json({
         success: false,
-        message: 'ID de usuario no proporcionado'
+        message: 'Usuario no encontrado'
       });
     }
 
     const updatedUser = await updateUserPreferences(userId, preferences);
-    
-    res.json({
-      success: true,
-      user: {
-        ...updatedUser,
-        password: undefined
-      },
-      message: 'Preferencias actualizadas correctamente'
-    });
+
+    if (updatedUser) {
+      res.json({
+        success: true,
+        message: 'Preferencias actualizadas correctamente',
+        user: updatedUser
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
   } catch (error) {
     console.error('Error al actualizar preferencias:', error);
     res.status(500).json({

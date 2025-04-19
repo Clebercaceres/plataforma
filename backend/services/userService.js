@@ -2,14 +2,29 @@ const fs = require('fs').promises;
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
-const USERS_FILE = path.join(__dirname, '../data/users.json');
+// Asegurarse de que el directorio data existe
+const DATA_DIR = path.join(__dirname, '../data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
-// Asegurarse de que el archivo existe
+// Asegurarse de que el archivo y directorio existen
 const ensureFile = async () => {
   try {
-    await fs.access(USERS_FILE);
-  } catch {
-    await fs.writeFile(USERS_FILE, '[]');
+    // Primero asegurarse de que el directorio existe
+    try {
+      await fs.access(DATA_DIR);
+    } catch {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+    }
+
+    // Luego verificar el archivo
+    try {
+      await fs.access(USERS_FILE);
+    } catch {
+      await fs.writeFile(USERS_FILE, '[]', { encoding: 'utf8', flag: 'w' });
+    }
+  } catch (error) {
+    console.error('Error al asegurar archivo de usuarios:', error);
+    throw new Error('Error al inicializar el sistema de usuarios');
   }
 };
 
@@ -18,19 +33,42 @@ const getUsers = async () => {
   await ensureFile();
   try {
     const data = await fs.readFile(USERS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      await fs.writeFile(USERS_FILE, JSON.stringify([]));
+    try {
+      return JSON.parse(data);
+    } catch (parseError) {
+      console.error('Error al parsear archivo de usuarios:', parseError);
+      // Si el archivo está corrupto, hacer backup y crear nuevo
+      const backupFile = `${USERS_FILE}.backup.${Date.now()}`;
+      await fs.copyFile(USERS_FILE, backupFile);
+      await fs.writeFile(USERS_FILE, '[]', { encoding: 'utf8', flag: 'w' });
       return [];
     }
-    throw error;
+  } catch (error) {
+    console.error('Error al leer archivo de usuarios:', error);
+    throw new Error('Error al acceder a los datos de usuarios');
   }
 };
 
 // Guardar usuarios
 const saveUsers = async (users) => {
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+  try {
+    // Primero escribir a un archivo temporal
+    const tempFile = `${USERS_FILE}.temp`;
+    await fs.writeFile(tempFile, JSON.stringify(users, null, 2), { encoding: 'utf8', flag: 'w' });
+    
+    // Hacer backup del archivo actual si existe
+    try {
+      await fs.access(USERS_FILE);
+      const backupFile = `${USERS_FILE}.backup`;
+      await fs.copyFile(USERS_FILE, backupFile);
+    } catch {}
+
+    // Renombrar el archivo temporal al archivo final
+    await fs.rename(tempFile, USERS_FILE);
+  } catch (error) {
+    console.error('Error al guardar usuarios:', error);
+    throw new Error('Error al guardar los datos de usuarios');
+  }
 };
 
 // Agregar usuario
