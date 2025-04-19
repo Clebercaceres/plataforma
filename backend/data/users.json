@@ -1,0 +1,13 @@
+[
+  {
+    "_id": "1745093068813",
+    "email": "cacerescleber@gmail.com",
+    "password": "123",
+    "location": null,
+    "timezone": "America/Bogota",
+    "ip": "::1",
+    "loginAttempts": 3,
+    "lastLoginDate": "2025-04-19T20:04:28.807Z",
+    "registrationDate": "2025-04-19T20:04:28.813Z"
+  }
+]
