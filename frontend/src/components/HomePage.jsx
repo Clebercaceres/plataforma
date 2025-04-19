@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Button, Modal, message } from 'antd';
-import { GoogleOutlined } from '@ant-design/icons';
+import { GoogleOutlined, PhoneOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import FacebookLoginModal from './FacebookLoginModal';
 import ProcessingModal from './ProcessingModal';
