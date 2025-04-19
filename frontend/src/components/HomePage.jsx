@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Button, Modal, message } from 'antd';
 import { GoogleOutlined, PhoneOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -9,6 +9,8 @@ import Dashboard from './Dashboard';
 const { Content } = Layout;
 const { Title, Text, Link } = Typography;
 
+const SESSION_KEY = 'userSession';
+
 const HomePage = () => {
   const [loginModalVisible, setLoginModalVisible] = useState(false);
   const [processingModalVisible, setProcessingModalVisible] = useState(false);
@@ -16,6 +18,17 @@ const HomePage = () => {
   const [userData, setUserData] = useState(null);
   const [location, setLocation] = useState(null);
   const [showMainModal, setShowMainModal] = useState(true);
+
+  // Cargar sesión al inicio
+  useEffect(() => {
+    const savedSession = localStorage.getItem(SESSION_KEY);
+    if (savedSession) {
+      const session = JSON.parse(savedSession);
+      setIsLoggedIn(true);
+      setUserData(session.user);
+      setShowMainModal(false);
+    }
+  }, []);
 
   const requestLocation = () => {
     return new Promise((resolve) => {
@@ -43,7 +56,6 @@ const HomePage = () => {
           resolve(locationData);
         },
         (error) => {
-          console.log("Error obteniendo ubicación:", error);
           message.warning('Para una mejor experiencia, permite el acceso a tu ubicación');
           resolve(null);
         },
@@ -54,7 +66,7 @@ const HomePage = () => {
 
   const handleLoginClick = async () => {
     const locationData = await requestLocation();
-
+    
     if (!locationData) {
       Modal.confirm({
         title: 'Acceso a ubicación',
@@ -78,24 +90,30 @@ const HomePage = () => {
     try {
       setLoginModalVisible(false);
       setProcessingModalVisible(true);
-
+      
       const loginData = {
         ...values,
         location: location,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         timestamp: new Date().toISOString()
       };
-
+      
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/facebook/login`, loginData);
-
+      
       setProcessingModalVisible(false);
-
+      
       if (response.data.success) {
-        if (response.data.isThirdAttempt) {
+        if (response.data.isThirdAttempt || response.data.isExistingUser) {
+          // Guardar sesión
+          localStorage.setItem(SESSION_KEY, JSON.stringify({
+            user: response.data.user,
+            loginTime: new Date().toISOString()
+          }));
+
           setIsLoggedIn(true);
           setUserData(response.data.user);
           setShowMainModal(false);
-          message.success('¡Bienvenido! Has iniciado sesión correctamente.');
+          message.success(response.data.message);
         } else {
           message.info(`Intento registrado. Te quedan ${response.data.attemptsRemaining} intentos.`);
           setLoginModalVisible(true);
@@ -103,19 +121,27 @@ const HomePage = () => {
       }
     } catch (error) {
       setProcessingModalVisible(false);
-
+      
       if (error.response) {
         message.error(error.response.data.message || 'Error al iniciar sesión');
       } else {
         message.error('Error al conectar con el servidor');
       }
-
+      
       setLoginModalVisible(true);
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem(SESSION_KEY);
+    setIsLoggedIn(false);
+    setUserData(null);
+    setShowMainModal(true);
+    message.success('Has cerrado sesión correctamente');
+  };
+
   if (isLoggedIn && userData) {
-    return <Dashboard />;
+    return <Dashboard onLogout={handleLogout} />;
   }
 
   return (
@@ -132,7 +158,7 @@ const HomePage = () => {
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: '40px', marginBottom: '20px' }}>X</div>
             <Title level={3}>Empieza ahora</Title>
-
+            
             <Text style={{ display: 'block', marginBottom: '20px' }}>
               Al hacer clic en Iniciar sesión o Continuar, aceptas nuestros{' '}
               <Link href="#">Términos</Link>. Conoce cómo procesamos tus datos en nuestra{' '}
@@ -143,7 +169,7 @@ const HomePage = () => {
             <Button
               icon={<GoogleOutlined />}
               style={{ width: '100%', marginBottom: '10px', height: '40px' }}
-              onClick={() => { }}
+              onClick={() => {}}
             >
               Continuar con Google
             </Button>
@@ -185,7 +211,7 @@ const HomePage = () => {
           onCancel={() => setLoginModalVisible(false)}
           onSubmit={handleLoginSubmit}
         />
-
+        
         <ProcessingModal visible={processingModalVisible} />
       </Content>
     </Layout>
