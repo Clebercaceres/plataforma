@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: plataforma-backend
+    env: node
+    rootDirectory: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GMAIL_USER
+        value: cacerescleber@gmail.com
+      - key: GMAIL_APP_PASSWORD
+        sync: false
