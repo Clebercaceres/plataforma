@@ -2,9 +2,12 @@ services:
   - type: web
     name: plataforma-backend
     env: node
-    rootDirectory: backend
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    buildCommand: |
+      cd backend
+      npm install
+    startCommand: |
+      cd backend
+      npm start
     envVars:
       - key: NODE_ENV
         value: production
