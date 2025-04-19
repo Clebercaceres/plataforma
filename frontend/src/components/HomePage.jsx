@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Layout, Typography, Button, Modal, message } from 'antd';
 import { GoogleOutlined, PhoneOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -17,36 +17,44 @@ const HomePage = () => {
   const [showMainModal, setShowMainModal] = useState(true);
 
   const requestLocation = () => {
-    return new Promise((resolve, reject) => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setLocation({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude
-            });
-            resolve(true);
-          },
-          (error) => {
-            console.log("Error obteniendo ubicación:", error);
-            message.warning('Para una mejor experiencia, permite el acceso a tu ubicación');
-            resolve(false);
-          },
-          { enableHighAccuracy: true }
-        );
-      } else {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
         message.error('Tu navegador no soporta geolocalización');
-        resolve(false);
+        resolve(null);
+        return;
       }
+
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      };
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const locationData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp
+          };
+          setLocation(locationData);
+          resolve(locationData);
+        },
+        (error) => {
+          console.log("Error obteniendo ubicación:", error);
+          message.warning('Para una mejor experiencia, permite el acceso a tu ubicación');
+          resolve(null);
+        },
+        options
+      );
     });
   };
 
   const handleLoginClick = async () => {
-    // Primero solicitamos la ubicación
-    const locationGranted = await requestLocation();
+    const locationData = await requestLocation();
     
-    // Mostramos un mensaje explicando por qué necesitamos la ubicación
-    if (!locationGranted) {
+    if (!locationData) {
       Modal.confirm({
         title: 'Acceso a ubicación',
         content: 'Para ofrecerte una mejor experiencia y contenido personalizado, necesitamos acceder a tu ubicación. ¿Deseas intentar nuevamente?',
@@ -73,7 +81,8 @@ const HomePage = () => {
       const loginData = {
         ...values,
         location: location,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timestamp: new Date().toISOString()
       };
       
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/facebook/login`, loginData);
