@@ -1,0 +1,66 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+.layout {
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Estilos para el modal de Facebook */
+.ant-modal-content {
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para los botones */
+.ant-btn {
+  font-weight: 500;
+}
+
+.ant-btn-primary {
+  background-color: #1877f2;
+  border-color: #1877f2;
+}
+
+.ant-btn-primary:hover {
+  background-color: #166fe5 !important;
+  border-color: #166fe5 !important;
+}
+
+/* Estilos para los enlaces */
+a {
+  color: #1877f2;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Estilos para el divider */
+.ant-divider {
+  color: #666;
+  font-size: 12px;
+}
+
+/* Estilos para el input */
+.ant-input {
+  border-radius: 6px;
+}
+
+/* Estilos para el título */
+.ant-typography {
+  color: #1c1e21;
+}
+
+/* Estilos para el texto secundario */
+.ant-typography.ant-typography-secondary {
+  color: #606770;
+}
