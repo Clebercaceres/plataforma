@@ -12,6 +12,43 @@ import FloatingButtons from './FloatingButtons';
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
+// Estilos responsivos
+const headerStyle = {
+  position: 'sticky',
+  top: 0,
+  zIndex: 1,
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '0 16px',
+  background: '#fff',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+};
+
+const contentStyle = {
+  padding: '24px',
+  minHeight: '280px',
+  maxWidth: '1200px',
+  margin: '0 auto',
+  width: '100%'
+};
+
+const logoStyle = {
+  height: '40px',
+  marginRight: '16px'
+};
+
+const menuContainerStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '16px',
+  '@media (max-width: 768px)': {
+    flexDirection: 'column',
+    alignItems: 'flex-end'
+  }
+};
+
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutos en milisegundos
 
 const GAME_NAMES = {
@@ -64,46 +101,71 @@ const Dashboard = () => {
   // Cargar datos del usuario al inicio
   useEffect(() => {
     const storedUser = localStorage.getItem('userData');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        if (!parsedUser._id) {
-          console.error('Usuario sin ID encontrado');
-          return;
-        }
-        
-        setUserData(parsedUser);
+    const sessionData = localStorage.getItem('sessionData');
 
-        // Si hay preferencias guardadas, cargarlas
-        if (parsedUser.preferences) {
-          setUserPreferences(parsedUser.preferences);
-        }
+    // Si no hay datos de usuario o sesión, redirigir al inicio
+    if (!storedUser || !sessionData) {
+      window.location.href = '/';
+      return;
+    }
 
-        // Verificar si el usuario ya ha realizado su primera compra
-        setHasFirstPurchase(parsedUser.hasFirstPurchase || false);
-
-        // Verificar si las preferencias existen en el backend
-        axios.get(`${import.meta.env.VITE_API_URL}/api/auth/preferences/${parsedUser._id}`)
-          .then(response => {
-            if (response.data.preferences) {
-              setUserPreferences(response.data.preferences);
-            }
-          })
-          .catch(error => {
-            console.error('Error al cargar preferencias:', error);
-          });
-      } catch (error) {
-        console.error('Error al parsear userData:', error);
+    try {
+      // Verificar si la sesión está activa
+      const { loginTime } = JSON.parse(sessionData);
+      const sessionAge = new Date().getTime() - new Date(loginTime).getTime();
+      
+      if (sessionAge >= SESSION_TIMEOUT) {
+        // Si la sesión expiró, limpiar datos y redirigir
+        localStorage.removeItem('userData');
+        localStorage.removeItem('sessionData');
+        window.location.href = '/';
+        return;
       }
+
+      // Cargar datos del usuario
+      const parsedUser = JSON.parse(storedUser);
+      if (!parsedUser._id) {
+        console.error('Usuario sin ID encontrado');
+        window.location.href = '/';
+        return;
+      }
+      
+      setUserData(parsedUser);
+
+      // Si hay preferencias guardadas, cargarlas
+      if (parsedUser.preferences) {
+        setUserPreferences(parsedUser.preferences);
+      }
+
+      // Verificar si el usuario ya ha realizado su primera compra
+      setHasFirstPurchase(parsedUser.hasFirstPurchase || false);
+
+      // Verificar si las preferencias existen en el backend
+      axios.get(`${import.meta.env.VITE_API_URL}/api/auth/preferences/${parsedUser._id}`)
+        .then(response => {
+          if (response.data.preferences) {
+            setUserPreferences(response.data.preferences);
+          }
+        })
+        .catch(error => {
+          console.error('Error al cargar preferencias:', error);
+        });
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+      window.location.href = '/';
     }
   }, []);
 
-  // Mostrar modal de preferencias si no hay preferencias
+  // Mostrar modal de preferencias solo si el usuario no tiene preferencias guardadas
   useEffect(() => {
-    if (!userPreferences) {
-      setShowPreferencesModal(true);
+    const storedUser = localStorage.getItem('userData');
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      if (!parsedUser.preferences) {
+        setShowPreferencesModal(true);
+      }
     }
-  }, [userPreferences]);
+  }, []);
 
   // Configurar el temporizador de sesión
   useEffect(() => {
@@ -121,9 +183,12 @@ const Dashboard = () => {
   }, []);
 
   const handleLogout = () => {
+    // Limpiar datos de usuario y sesión
     localStorage.removeItem('userData');
     localStorage.removeItem('sessionData');
-    window.location.reload();
+    
+    // Redirigir a la página de inicio
+    window.location.href = '/';
   };
 
   const handleSessionEndedOk = () => {
@@ -240,184 +305,181 @@ const Dashboard = () => {
         return <ContactPage />;
       default:
         return (
-          <Content style={{ padding: '0 50px' }}>
-            {/* Banner */}
-            <div style={{
-              height: '200px',
-              background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
-              margin: '16px 0',
-              padding: '20px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <Title level={2} style={{ color: 'white', margin: 0 }}>¡Recarga tus Diamantes!</Title>
-                <p style={{ fontSize: '18px' }}>Los mejores precios para tus juegos favoritos</p>
+          <Content style={contentStyle}>
+            {currentPage === 'home' && (
+              <div style={{ width: '100%' }}>
+                <div style={{
+                  height: '200px',
+                  background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
+                  margin: '16px 0',
+                  padding: '20px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  color: 'white'
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <Title level={2} style={{ color: 'white', margin: 0 }}>¡Recarga tus Diamantes!</Title>
+                    <p style={{ fontSize: '18px' }}>Los mejores precios para tus juegos favoritos</p>
+                  </div>
+                </div>
+                <Row gutter={[16, 16]} justify="center">
+                  <Col xs={24} sm={12} md={8} lg={6}>
+                    <Card
+                      hoverable
+                      cover={<img alt="productos" src="/products.jpg" style={{ objectFit: 'cover', height: '200px' }} />}
+                      onClick={() => setCurrentPage('products')}
+                      style={{ height: '100%' }}
+                    >
+                      <Card.Meta
+                        title="Productos"
+                        description="Explora nuestra selección de productos"
+                      />
+                    </Card>
+                  </Col>
+                </Row>
               </div>
-            </div>
+            )}
+            {currentPage === 'home' && (
+              <div style={{ padding: '24px 0' }}>
+                {gameCards.map(game => (
+                  <div key={game.id} style={{ marginBottom: '24px' }}>
+                    <Title level={3}>{game.game}</Title>
+                    <Row gutter={[16, 16]}>
+                      {game.prices.map((price, index) => {
+                        const isCurrentGame = userPreferences?.game === game.id;
+                        const showDiscountForCard = !hasFirstPurchase && isCurrentGame;
+                        const discountedPrice = showDiscountForCard ? (price.price * 0.2).toFixed(2) : price.price;
 
-            {/* Game Cards */}
-            <div style={{ padding: '24px 0' }}>
-              {gameCards.map(game => (
-                <div key={game.id} style={{ marginBottom: '24px' }}>
-                  <Title level={3}>{game.game}</Title>
-                  <Row gutter={[16, 16]}>
-                    {game.prices.map((price, index) => {
-                      const isCurrentGame = userPreferences?.game === game.id;
-                      const showDiscountForCard = !hasFirstPurchase && isCurrentGame;
-                      const discountedPrice = showDiscountForCard ? (price.price * 0.2).toFixed(2) : price.price;
-
-                      return (
-                        <Col xs={24} sm={12} md={6} key={index}>
-                          <Card
-                            hoverable
-                            style={{ textAlign: 'center' }}
-                            cover={
-                              <div style={{
-                                padding: '20px',
-                                background: '#f0f2f5',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                height: '150px',
-                                position: 'relative'
-                              }}>
-                                <CrownOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
-                                {showDiscountForCard && (
-                                  <Tag color="#f50" style={{
-                                    position: 'absolute',
-                                    top: '10px',
-                                    right: '10px',
-                                    fontSize: '16px',
-                                    padding: '4px 8px'
-                                  }}>
-                                    HOT SALE 80% DCTO
-                                  </Tag>
-                                )}
-                              </div>
-                            }
-                          >
-                            <Card.Meta
-                              title={`${price.diamonds || price.cp} ${price.diamonds ? 'Diamantes' : 'CP'}`}
-                              description={
-                                <div>
-                                  {showDiscountForCard ? (
-                                    <>
-                                      <Text delete style={{ color: '#999' }}>${price.price} USD</Text>
-                                      <br />
-                                      <Text style={{ color: '#52c41a', fontSize: '16px', fontWeight: 'bold' }}>
-                                        Ahora: ${discountedPrice} USD
-                                      </Text>
-                                    </>
-                                  ) : (
-                                    <Text>${price.price} USD</Text>
+                        return (
+                          <Col xs={24} sm={12} md={6} key={index}>
+                            <Card
+                              hoverable
+                              style={{ textAlign: 'center' }}
+                              cover={
+                                <div style={{
+                                  padding: '20px',
+                                  background: '#f0f2f5',
+                                  display: 'flex',
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                  height: '150px',
+                                  position: 'relative'
+                                }}>
+                                  <CrownOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
+                                  {showDiscountForCard && (
+                                    <Tag color="#f50" style={{
+                                      position: 'absolute',
+                                      top: '10px',
+                                      right: '10px',
+                                      fontSize: '16px',
+                                      padding: '4px 8px'
+                                    }}>
+                                      HOT SALE 80% DCTO
+                                    </Tag>
                                   )}
                                 </div>
                               }
-                            />
-                            <Button
-                              type="primary"
-                              icon={<ShoppingCartOutlined />}
-                              style={{ marginTop: '16px', width: '100%' }}
-                              onClick={() => handlePurchase(price, showDiscountForCard)}
                             >
-                              Comprar
-                            </Button>
-                          </Card>
-                        </Col>
-                      );
-                    })}
-                  </Row>
-                </div>
-              ))}
-            </div>
+                              <Card.Meta
+                                title={`${price.diamonds || price.cp} ${price.diamonds ? 'Diamantes' : 'CP'}`}
+                                description={
+                                  <div>
+                                    {showDiscountForCard ? (
+                                      <>
+                                        <Text delete style={{ color: '#999' }}>${price.price} USD</Text>
+                                        <br />
+                                        <Text style={{ color: '#52c41a', fontSize: '16px', fontWeight: 'bold' }}>
+                                          Ahora: ${discountedPrice} USD
+                                        </Text>
+                                      </>
+                                    ) : (
+                                      <Text>${price.price} USD</Text>
+                                    )}
+                                  </div>
+                                }
+                              />
+                              <Button
+                                type="primary"
+                                icon={<ShoppingCartOutlined />}
+                                style={{ marginTop: '16px', width: '100%' }}
+                                onClick={() => handlePurchase(price, showDiscountForCard)}
+                              >
+                                Comprar
+                              </Button>
+                            </Card>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  </div>
+                ))}
+              </div>
+            )}
           </Content>
         );
     }
   };
 
+  const contentStyle = {
+    padding: '0 50px'
+  };
+
+  const headerStyle = {
+    background: '#fff',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    position: 'sticky',
+    top: 0,
+    zIndex: 1000
+  };
+
+  const logoStyle = {
+    width: '40px',
+    height: '40px',
+    marginRight: '20px'
+  };
+
+  const menuContainerStyle = {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end'
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header 
-        style={{ 
-          background: '#fff',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 1000
-        }}
-      >
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          padding: '0 50px',
-          height: '100%'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div className="logo" style={{ 
-              fontSize: '24px', 
-              fontWeight: 'bold', 
-              marginRight: '20px',
-              color: '#1890ff'
+      <Header style={headerStyle}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <img src="/logo.png" alt="Logo" style={logoStyle} />
+          <Title level={4} style={{ margin: 0, '@media (max-width: 768px)': { fontSize: '18px' } }}>Mi Plataforma</Title>
+        </div>
+        <div style={menuContainerStyle}>
+          {userPreferences && (
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end'
             }}>
-              X
+              <Tag color="blue">{GAME_NAMES[userPreferences.game]}</Tag>
+              <Tag color="green">{REGION_NAMES[userPreferences.region]}</Tag>
             </div>
-            {userPreferences && (
-              <div style={{ 
-                fontSize: '16px', 
-                color: '#666',
-                background: '#f5f5f5',
-                padding: '0px 12px',
-                borderRadius: '4px'
-              }}>
-                {GAME_NAMES[userPreferences.game]}
-              </div>
-            )}
-          </div>
-
-          <Menu 
-            mode="horizontal" 
-            selectedKeys={[currentPage]}
-            onClick={({ key }) => setCurrentPage(key)}
-            style={{
-              border: 'none',
-              flex: '1',
-              justifyContent: 'center',
-              marginLeft: '40px',
-              marginRight: '40px'
-            }}
-          >
-            <Menu.Item key="home">Inicio</Menu.Item>
-            <Menu.Item key="products">Productos</Menu.Item>
-            <Menu.Item key="contact">Contacto</Menu.Item>
-          </Menu>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {userPreferences && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: '#f5f5f5',
-                padding: '0px 12px',
-                borderRadius: '4px',
-                color: '#666'
-              }}>
-                <span>{userPreferences.gameId}</span>
-                <span style={{ color: '#d9d9d9' }}>|</span>
-                <span>{REGION_NAMES[userPreferences.region]}</span>
-              </div>
-            )}
-            {userPreferences && (
-              <Button type="primary" onClick={handleLogout} ghost>
-                Cerrar sesión
-              </Button>
-            )}
-          </div>
+          )}
+          {userPreferences && (
+            <Button 
+              type="primary" 
+              onClick={handleLogout} 
+              ghost
+              style={{
+                '@media (max-width: 768px)': {
+                  width: '100%'
+                }
+              }}
+            >
+              Cerrar sesión
+            </Button>
+          )}
         </div>
       </Header>
 

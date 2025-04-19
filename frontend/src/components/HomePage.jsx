@@ -21,12 +21,29 @@ const HomePage = () => {
 
   // Cargar sesión al inicio
   useEffect(() => {
-    const savedSession = localStorage.getItem(SESSION_KEY);
-    if (savedSession) {
-      const session = JSON.parse(savedSession);
-      setIsLoggedIn(true);
-      setUserData(session.user);
-      setShowMainModal(false);
+    // Verificar si hay una sesión activa
+    const sessionData = localStorage.getItem(SESSION_KEY);
+    const userData = localStorage.getItem('userData');
+
+    if (sessionData && userData) {
+      try {
+        const { loginTime } = JSON.parse(sessionData);
+        const sessionAge = new Date().getTime() - new Date(loginTime).getTime();
+        
+        if (sessionAge < SESSION_TIMEOUT) {
+          setIsLoggedIn(true);
+          // Redirigir al dashboard si hay sesión activa
+          window.location.href = '/dashboard';
+        } else {
+          // Limpiar datos si la sesión expiró
+          localStorage.removeItem(SESSION_KEY);
+          localStorage.removeItem('userData');
+        }
+      } catch (error) {
+        console.error('Error al verificar sesión:', error);
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem('userData');
+      }
     }
   }, []);
 
