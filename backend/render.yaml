@@ -2,7 +2,7 @@ services:
   - type: web
     name: plataforma-backend
     env: node
-    rootDirectory: backend
+    rootDirectory: .
     buildCommand: npm install
     startCommand: npm start
     envVars:
