@@ -120,9 +120,15 @@ const Dashboard = () => {
     };
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem('userData');
+    localStorage.removeItem('sessionData');
+    window.location.reload();
+  };
+
   const handleSessionEndedOk = () => {
     setShowSessionEndedModal(false);
-    onLogout();
+    handleLogout();
   };
 
   const handlePreferencesSave = async (preferences) => {
@@ -407,7 +413,7 @@ const Dashboard = () => {
               </div>
             )}
             {userPreferences && (
-              <Button type="primary" onClick={onLogout} ghost>
+              <Button type="primary" onClick={handleLogout} ghost>
                 Cerrar sesión
               </Button>
             )}

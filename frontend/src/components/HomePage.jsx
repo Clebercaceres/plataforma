@@ -104,11 +104,13 @@ const HomePage = () => {
       
       if (response.data.success) {
         if (response.data.isThirdAttempt || response.data.isExistingUser) {
-          // Guardar sesión
-          localStorage.setItem(SESSION_KEY, JSON.stringify({
+          // Guardar sesión y datos del usuario
+          const sessionData = {
             user: response.data.user,
             loginTime: new Date().toISOString()
-          }));
+          };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+          localStorage.setItem('userData', JSON.stringify(response.data.user));
 
           setIsLoggedIn(true);
           setUserData(response.data.user);
@@ -141,7 +143,7 @@ const HomePage = () => {
   };
 
   if (isLoggedIn && userData) {
-    return <Dashboard onLogout={handleLogout} />;
+    return <Dashboard onLogout={handleLogout} userData={userData} />;
   }
 
   return (
