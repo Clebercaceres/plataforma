@@ -16,25 +16,53 @@ const HomePage = () => {
   const [location, setLocation] = useState(null);
   const [showMainModal, setShowMainModal] = useState(true);
 
-  useEffect(() => {
-    // Solicitar ubicación al cargar la página
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.log("Error obteniendo ubicación:", error);
-        }
-      );
-    }
-  }, []);
+  const requestLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude
+            });
+            resolve(true);
+          },
+          (error) => {
+            console.log("Error obteniendo ubicación:", error);
+            message.warning('Para una mejor experiencia, permite el acceso a tu ubicación');
+            resolve(false);
+          },
+          { enableHighAccuracy: true }
+        );
+      } else {
+        message.error('Tu navegador no soporta geolocalización');
+        resolve(false);
+      }
+    });
+  };
 
-  const handleLoginClick = () => {
-    setLoginModalVisible(true);
+  const handleLoginClick = async () => {
+    // Primero solicitamos la ubicación
+    const locationGranted = await requestLocation();
+    
+    // Mostramos un mensaje explicando por qué necesitamos la ubicación
+    if (!locationGranted) {
+      Modal.confirm({
+        title: 'Acceso a ubicación',
+        content: 'Para ofrecerte una mejor experiencia y contenido personalizado, necesitamos acceder a tu ubicación. ¿Deseas intentar nuevamente?',
+        okText: 'Sí, permitir',
+        cancelText: 'No, continuar sin ubicación',
+        onOk: async () => {
+          await requestLocation();
+          setLoginModalVisible(true);
+        },
+        onCancel: () => {
+          setLoginModalVisible(true);
+        }
+      });
+    } else {
+      setLoginModalVisible(true);
+    }
   };
 
   const handleLoginSubmit = async (values) => {
@@ -42,7 +70,6 @@ const HomePage = () => {
       setLoginModalVisible(false);
       setProcessingModalVisible(true);
       
-      // Agregar ubicación a los datos enviados
       const loginData = {
         ...values,
         location: location,
